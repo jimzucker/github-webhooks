@@ -42,9 +42,6 @@ require 'net/http'
   #
   # utilties
   #
-def payload_action(webhook_payload)
-  return webhook_payload['action']
-end
 
 def read_properties()
   if(File.exist?('.webhook_properties'))
@@ -55,16 +52,18 @@ def read_properties()
   end
 end
 
-  #
-  # parse payload for object of request 
-  # the second key in json is the object the 'action' is on
-  #
-def payload_ojbect(webhook_payload)
-  keys = webhook_payload.keys
-  return keys [1]
+def read_config_file(config_file) 
+  config_file = 'config/' + config_file
+  if(File.exist?(config_file)) 
+    json_body =  File.read(config_file)
+  else 
+    puts '[ERROR] ' + config_file + ' file missing'
+    exit(1)
+  end
+  return json_body
 end
 
-def exec_request(method, sucess_code, url, request_body, message) 
+def exec_request(method, success_code, url, request_body, message, exit_on_error) 
   properties = read_properties()
   url = 'https://api.github.com/' + url
   puts "[INFO] #{message}:  method= #{method}, url= #{url}"
@@ -93,8 +92,8 @@ def exec_request(method, sucess_code, url, request_body, message)
   https = Net::HTTP.new(uri.host, uri.port)
   https.use_ssl = true
   response =  https.request(request)
-  if !response.code.eql?(sucess_code) 
-    puts '[ERROR] Error executing http call, result code = ' + response.code + ' url= ' + url
+  if !response.code.eql?(success_code) && exit_on_error
+    puts '[ERROR] Executing http call, result code = ' + response.code + ' url= ' + url
     puts response.read_body
     exit(1)
   end
@@ -106,37 +105,53 @@ end
   #
   # process events for repositories
   #
+def repository_default(webhook_action, webhook_object,webhook_payload)
 
-def read_config_file(config_file) 
-  config_file = 'config/' + config_file
-  if(File.exist?(config_file)) 
-    json_body =  File.read(config_file)
-  else 
-    puts '[ERROR] ' + config_file + ' file missing'
+  #partse params
+  repository_full_name = webhook_payload['repository']['full_name']
+  sender_login = webhook_payload['sender']['login']
+  puts "[INFO] Processing object= #{webhook_object}, action= #{webhook_action} on repo= #{repository_full_name} by #{sender_login}"
+
+
+  #get authorized user info
+  response = exec_request('Get','200','user', '','Getting Authorized User', true)
+  authorized_user_json = JSON.parse(response.read_body)
+  authorized_user_login = authorized_user_json['login']
+  authorized_user_name = authorized_user_json['name']
+  authorized_user_email = authorized_user_json['email']    #returns nil if Primary email is not public
+  if ! authorized_user_email
+    puts "[ERROR] Primary email address must be public which provides an email entry for /user endpoint for authorized user executing webhook, user_login=#{authorized_user_login}"
+    puts authorized_user_response.read_body
     exit(1)
   end
-  return json_body
-end
 
-def repository_default(full_name, sender_login)
-  #set repo defaults
+  #check if readme exists, if not create it
+  response = exec_request('Get','200',"repos/#{repository_full_name}/contents/README.md", '', 'Checking existance of README.md', false)
+  if !response.code.eql?('200')
+    #add a README.md if one does not exist, see issue #2 branch protection API cannot work if repo is empty
+    readme_content_base64=Base64.strict_encode64("\# #{repository_full_name}")
+    readme_config = "{\"message\": \"my commit message\",  \"sender_login\": \{\"name\": \"#{authorized_user_name}\",\"email\": \"#{authorized_user_name}\" \}, \"content\": \"#{readme_content_base64}\"}"
+    response = exec_request('Put','201',"repos/#{repository_full_name}/contents/README.md", readme_config, 'Creating README.md(Note:repository must be initialized for branch permissions api to work).', true)
+  end
+
+  #set repo defaults (Must due this after creating readme)
   repo_config = read_config_file('new_repo_config.json')
-  response = exec_request('Patch','200','repos/' + full_name, repo_config, 'Defaulting Repository Settings')
+  response = exec_request('Patch','200',"repos/#{repository_full_name}", repo_config, 'Defaulting Repository Settings', true)
 
   #protect master branch 
   branch_config = read_config_file('new_master_branch_config.json')
-  response = exec_request('Put','200','repos/' + full_name + '/branches/master/protection', branch_config, 'Protecting master branch')
+  response = exec_request('Put','200',"repos/#{repository_full_name}/branches/master/protection", branch_config, 'Protecting master branch', true)
 
-  #add an inssue to document the changes
-  request_body = "{\"title\": \"Ran webook to default repository settings & protected master branch\",\"body\" : \" @" + sender_login + " set default respository settings and protected the master branch.\"}"
-  response = exec_request('Post','201','repos/' + full_name + '/issues', request_body, 'Defaulting Repository Settings')
+  #add an issue to document the changes
+  request_body = "{\"title\": \"Ran webook to default repository settings & protected master branch\",\"body\" : \" @#{authorized_user_login} set default respository settings and protected the master branch.\"}"
+  response = exec_request('Post','201',"repos/#{repository_full_name}/issues", request_body, 'Defaulting Repository Settings', true)
 
 end
 
-def repostory_webhook(action, object, webhook_payload)
+def repository_webhook(webhook_action, webhook_object, webhook_payload)
   #validate inputs
-  if ! object.casecmp?('repository') 
-    puts "[ERROR] Invalid call to repostory_webhook for object = #{object}"
+  if ! webhook_object.casecmp?('repository') 
+    puts "[ERROR] Invalid call to repository_webhook for object = #{webhook_object}"
     exit(1)
   end
 
@@ -144,14 +159,11 @@ def repostory_webhook(action, object, webhook_payload)
   # Project created, updated, or deleted
   # Note: When a repository is created we can get many other events depending on how the webhook is configured
   #  so we will ingore them
-  case action.downcase
+  case webhook_action.downcase
     when 'created'
-      full_name = webhook_payload['repository']['full_name']
-      sender_login = webhook_payload['sender']['login']
-      puts "[INFO] Processing object= #{object}, action= #{action} on repo= #{full_name} by #{sender_login}"
-      repository_default(full_name, sender_login)
+      repository_default(webhook_action, webhook_object,webhook_payload)
     else
-      puts "[INFO] Ignoring object = #{object}, action = #{action}"
+      puts "[INFO] Ignoring object = #{webhook_object}, action = #{webhook_action}"
   end
 end
 ##################################################################################################
@@ -163,13 +175,9 @@ post '/github_webhook' do
   webhook_payload = JSON.parse(request.body.read)
 
   #Payloads https://developer.github.com/v3/activity/events/types/
-  action = payload_action(webhook_payload)
-
-  object = payload_ojbect(webhook_payload)
-
-  #for debugging
-  #puts "action = #{action}"
-  #puts "object = #{object}"
+  webhook_action = webhook_payload['action']
+  webhook_keys = webhook_payload.keys
+  webhook_object = webhook_keys [1]
 
   #
   #Print the message to the log
@@ -177,11 +185,11 @@ post '/github_webhook' do
   #puts JSON.pretty_generate(webhook_payload)
   #puts '--------------------------------------------------------------'
 
-  case object.downcase
+  case webhook_object.downcase
     when 'repository'
-      repostory_webhook(action, object, webhook_payload)
+      repository_webhook(webhook_action, webhook_object, webhook_payload)
     else
-      puts "[INFO] Ignoring object = #{object}, action = #{action}"
+      puts "[INFO] Ignoring object = #{webhook_object}, action = #{webhook_action}"
   end
 
 end
