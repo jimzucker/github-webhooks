@@ -1,0 +1,528 @@
+{
+	"info": {
+		"_postman_id": "377d1300-6f9a-4155-84ac-f410123c88c1",
+		"name": "github_webooks",
+		"description": "Example of Github API in a postman collection\n\nConfiguration\nEnvironment define 'githubToken' with your API token\n\nReferences:\nOrganization - https://developer.github.com/v3/orgs/\n\nTeam - https://developer.github.com/v3/teams/#add-or-update-team-repository\n\nRepository - https://developer.github.com/v3/repos/?#\n\nCollection - set the following \nowner - organization for testing\nowner_id - id of owner, you can get this with the 'List User Orgs'\nrepo - repo name for testing\nteam_slug - default team to grant acess to r/w on repo\nteam_id - id of team_slug, you can get this with 'List Teams'",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "organizations",
+			"item": [
+				{
+					"name": "List User Organizations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "24f1cab3-7d32-4292-9f68-062e83c8f3be",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.github.com/user/orgs",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"user",
+								"orgs"
+							]
+						},
+						"description": "List organazations"
+					},
+					"response": []
+				}
+			],
+			"description": "Reference: https://developer.github.com/v3/orgs/",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "bbe0b4c6-094b-4797-9fc9-dffe4d64b2ea",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "e09d9ab9-496e-4866-988c-370d71e418cf",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Team",
+			"item": [
+				{
+					"name": "Team - List teams",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"type": "text",
+								"value": "application/vnd.github.luke-cage-preview+json"
+							}
+						],
+						"url": {
+							"raw": "https://api.github.com/orgs/{{owner}}/teams",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"orgs",
+								"{{owner}}",
+								"teams"
+							]
+						},
+						"description": "We want to enforce Merge on master."
+					},
+					"response": []
+				},
+				{
+					"name": "Team - List team Repos (not working)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.github.com/orgs/{{org_id}}/team/{{team_id}}/repos",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"orgs",
+								"{{org_id}}",
+								"team",
+								"{{team_id}}",
+								"repos"
+							]
+						},
+						"description": "We want to enforce Merge on master.\n\nReference: https://developer.github.com/v3/teams/#list-team-repos"
+					},
+					"response": []
+				}
+			],
+			"description": "Reference: https://developer.github.com/v3/teams/#add-or-update-team-repository",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "a64bc1fe-e929-44f1-8bdc-3a00ac8b461b",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "1f7d5303-0e0c-4027-9ad9-ae82de72f741",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "repository",
+			"item": [
+				{
+					"name": "Default Repository Settings",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "token {{githubToken}}",
+								"description": "Github Token",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"allow_squash_merge\": false,\"allow_merge_commit\": true,\"allow_rebase_merge\": true,\"delete_branch_on_merge\": true}"
+						},
+						"url": {
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"repos",
+								"{{owner}}",
+								"{{repo}}"
+							]
+						},
+						"description": "For a repo we want to set the following defaults:\n{\n\"allow_squash_merge\": false\n\"allow_merge_commit\": true\n\"allow_rebase_merge\": true\n\"delete_branch_on_merge\": true\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "Repo - Protect Master branch",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/vnd.github.luke-cage-preview+json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"required_status_checks\": {\n\t\"strict\" : true,\n\t\"contexts\": []\n},\n  \"enforce_admins\": false,\n  \"required_pull_request_reviews\": {\n    \"dismissal_restrictions\": {},\n    \"dismiss_stale_reviews\": true,\n    \"require_code_owner_reviews\": false,\n    \"required_approving_review_count\": 1\n  },\n  \"restrictions\": null,\n  \"required_linear_history\": false,\n  \"allow_force_pushes\": false,\n  \"allow_deletions\": false\n}"
+						},
+						"url": {
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/branches/master/protection",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"repos",
+								"{{owner}}",
+								"{{repo}}",
+								"branches",
+								"master",
+								"protection"
+							]
+						},
+						"description": "We want to enforce Merge on master."
+					},
+					"response": []
+				},
+				{
+					"name": "Repo - Add Default Team",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"type": "text",
+								"value": "application/vnd.github.luke-cage-preview+json"
+							}
+						],
+						"url": {
+							"raw": "https://api.github.com/organizations/{{owner_id}}/teams/{{team_id}}/repos/{{owner}}/{{repo}}?permission=push",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"organizations",
+								"{{owner_id}}",
+								"teams",
+								"{{team_id}}",
+								"repos",
+								"{{owner}}",
+								"{{repo}}"
+							],
+							"query": [
+								{
+									"key": "permission",
+									"value": "push",
+									"description": "team members can pull and push, but not administer this repository."
+								}
+							]
+						},
+						"description": "We want to enforce Merge on master."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Issue",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Set Default Repository Settings & protected master branch\",\n  \"body\": \"@ set default respository settings and protected master branch with the follwing settings:\\n\\nRepository\\n==================================\\n\\n\\nMaster Branch Protection\\n==================================\\n\"\n}"
+						},
+						"url": {
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/issues",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"repos",
+								"{{owner}}",
+								"{{repo}}",
+								"issues"
+							]
+						},
+						"description": "For a repo we want to set the following defaults:\n{\n\"allow_squash_merge\": false\n\"allow_merge_commit\": true\n\"allow_rebase_merge\": true\n\"delete_branch_on_merge\": true\n}"
+					},
+					"response": []
+				}
+			],
+			"description": "Reference: https://developer.github.com/v3/repos/?#",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "4574ea05-bea1-4850-aa63-18d7e92bd982",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"id": "d71e22ce-7fcc-4353-b8c4-e923448920bc",
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Content",
+			"item": [
+				{
+					"name": "Contents - Read File: README.md",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/contents/README.md",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"repos",
+								"{{owner}}",
+								"{{repo}}",
+								"contents",
+								"README.md"
+							]
+						},
+						"description": "For a repo we want to set the following defaults:\n{\n\"allow_squash_merge\": false\n\"allow_merge_commit\": true\n\"allow_rebase_merge\": true\n\"delete_branch_on_merge\": true\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "Contents - Create File: README.md",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"my commit message\",\n  \"committer\": {\n    \"name\": \"Jim Zucker\",\n    \"email\": \"jim@zucker.us\"\n  },\n  \"content\": \"bXkgbmV3IGZpbGUgY29udGVudHM=\"\n}"
+						},
+						"url": {
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/contents/README2.md",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"repos",
+								"{{owner}}",
+								"{{repo}}",
+								"contents",
+								"README2.md"
+							]
+						},
+						"description": "For a repo we want to set the following defaults:\n{\n\"allow_squash_merge\": false\n\"allow_merge_commit\": true\n\"allow_rebase_merge\": true\n\"delete_branch_on_merge\": true\n}"
+					},
+					"response": []
+				}
+			],
+			"protocolProfileBehavior": {}
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "49917cfd-aae8-40f9-8d8c-d26871024660",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "32e0dc4d-3087-4741-bb96-eeb85c8966fe",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"id": "c3235032-9959-4102-8ded-4e2015491200",
+			"key": "owner",
+			"value": "StrategicDevOps",
+			"type": "string"
+		},
+		{
+			"id": "da834e91-b703-4fcb-a60d-403f0642506a",
+			"key": "repo",
+			"value": "tt",
+			"type": "string"
+		},
+		{
+			"id": "14fb627a-25d5-489c-9f97-1734a215e187",
+			"key": "team_slug",
+			"value": "engineering",
+			"type": "string"
+		},
+		{
+			"id": "c6ca55f7-1cd4-40ad-a166-3ab2885758a0",
+			"key": "team_id",
+			"value": "3642895",
+			"type": "string"
+		},
+		{
+			"id": "e1c8f1d0-f997-400a-9db0-ee321d8227f9",
+			"key": "owner_id",
+			"value": "31715628",
+			"type": "string"
+		}
+	],
+	"protocolProfileBehavior": {}
+}
