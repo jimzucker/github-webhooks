@@ -1,6 +1,8 @@
 # github-webhooks
 Web service that listens for organization events to know when a repository has been created. When the repository is created please automate the protection of the master branch. Notify yourself with an @mention in an issue within the repository that outlines the protections that were added.
 
+You can run the webhooks in docker, see https://hub.docker.com/r/jimzucker/github-webhooks, or you can run the server directly from Github, instructions are at the end of the readme.
+
 #### The following rules are enforced
 
 ##### Repository
@@ -20,19 +22,19 @@ You can change the configuration for the settings used by the webhooks.  Each co
 
 # To run the webhooks with default settings
 
-##### First create a file .webhook_properties with one property defined
+## First create a file .webhook_properties with one property defined
 
 ```
 githubToken=<github api token>
 ```
 
-##### Start docker
+## Start docker
 
 ``` 
-docker run --rm -ti  --volume $PWD/.webhook_properties:/usr/src/app/.webhook_properties jimzucker/github-webhooks:latest 
+docker run --rm -d -p4567:4567 --volume $PWD/.webhook_properties:/usr/src/app/.webhook_properties jimzucker/github-webhooks:latest
 ```
 
-##### Example docker-compose
+## Example docker-compose
 
 You change the parameters for the webhooks by creating a local copy over overriting the config directory
 
