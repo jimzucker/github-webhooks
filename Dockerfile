@@ -12,5 +12,5 @@ RUN bundle install
 
 COPY . .
 
-CMD ["./github_webhooks.rb"]
+CMD ["/usr/local/bin/ruby", "./github_webhooks.rb", "-o", "0.0.0.0"]
 
