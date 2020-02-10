@@ -31,7 +31,8 @@ githubToken=<github api token>
 ## Start docker
 
 ``` 
-docker run --rm -d -p4567:4567 --volume $PWD/.webhook_properties:/usr/src/app/.webhook_properties jimzucker/github-webhooks:latest
+docker run --rm -ti -p 4567:4567 -v $PWD/.webhook_properties:/usr/src/app/.webhook_properties \
+	--name github-webhooks jimzucker/github-webhooks:latest
 ```
 
 ## Example docker-compose
