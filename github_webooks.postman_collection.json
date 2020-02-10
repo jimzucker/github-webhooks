@@ -447,7 +447,7 @@
 							"raw": "{\n  \"message\": \"my commit message\",\n  \"committer\": {\n    \"name\": \"Jim Zucker\",\n    \"email\": \"jim@zucker.us\"\n  },\n  \"content\": \"bXkgbmV3IGZpbGUgY29udGVudHM=\"\n}"
 						},
 						"url": {
-							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/contents/README2.md",
+							"raw": "https://api.github.com/repos/{{owner}}/{{repo}}/contents/README.md",
 							"protocol": "https",
 							"host": [
 								"api",
@@ -459,7 +459,7 @@
 								"{{owner}}",
 								"{{repo}}",
 								"contents",
-								"README2.md"
+								"README.md"
 							]
 						},
 						"description": "For a repo we want to set the following defaults:\n{\n\"allow_squash_merge\": false\n\"allow_merge_commit\": true\n\"allow_rebase_merge\": true\n\"delete_branch_on_merge\": true\n}"
@@ -467,6 +467,40 @@
 					"response": []
 				}
 			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Users - Authenticated User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"description": "Github Token",
+								"key": "Authorization",
+								"type": "text",
+								"value": "token {{githubToken}}"
+							}
+						],
+						"url": {
+							"raw": "https://api.github.com/user",
+							"protocol": "https",
+							"host": [
+								"api",
+								"github",
+								"com"
+							],
+							"path": [
+								"user"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Reference: https://developer.github.com/v3/users/#get-the-authenticated-user",
 			"protocolProfileBehavior": {}
 		}
 	],
@@ -494,31 +528,31 @@
 	],
 	"variable": [
 		{
-			"id": "c3235032-9959-4102-8ded-4e2015491200",
+			"id": "71e36270-f00e-400b-a403-baa71753eeb2",
 			"key": "owner",
 			"value": "StrategicDevOps",
 			"type": "string"
 		},
 		{
-			"id": "da834e91-b703-4fcb-a60d-403f0642506a",
+			"id": "1f4004b0-6b69-46a7-9bec-6fb9c9f8cd0f",
 			"key": "repo",
 			"value": "tt",
 			"type": "string"
 		},
 		{
-			"id": "14fb627a-25d5-489c-9f97-1734a215e187",
+			"id": "fbdf1e43-0b08-415a-a72f-f810476274c8",
 			"key": "team_slug",
 			"value": "engineering",
 			"type": "string"
 		},
 		{
-			"id": "c6ca55f7-1cd4-40ad-a166-3ab2885758a0",
+			"id": "e4cbad3a-7293-43fe-85a3-6934e013b123",
 			"key": "team_id",
 			"value": "3642895",
 			"type": "string"
 		},
 		{
-			"id": "e1c8f1d0-f997-400a-9db0-ee321d8227f9",
+			"id": "455f33b5-1c01-4cec-84c3-2abb9a591acf",
 			"key": "owner_id",
 			"value": "31715628",
 			"type": "string"
