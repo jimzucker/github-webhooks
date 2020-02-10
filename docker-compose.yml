@@ -8,5 +8,6 @@ services:
       - 4567:4567
 # you can copy configs locally and then override with:
 #  docker cp github-webhooks:/usr/src/app/config .
-#    volumes:
+    volumes:
+      - $PWD/webhook_properties:/usr/src/app/.webhook_properties
 #      - $PWD/config:/usr/src/app/config

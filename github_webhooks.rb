@@ -194,4 +194,9 @@ post '/github_webhook' do
 
 end
 
+if(!File.exist?('.webhook_properties'))
+  puts '[ERROR] You must have a java style properties file .webhook_properties with githubToken=xx defined.'
+  exit(1)
+end
+
 ##################################################################################################
