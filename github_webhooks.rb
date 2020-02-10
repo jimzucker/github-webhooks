@@ -197,6 +197,10 @@ post '/github_webhook' do
 
 end
 
+#force puts to show in docker logs (reference: sinatra/sinatra#1118 )
+$stdout.sync = true
+
+#check for required file with your API tocken
 if(!File.exist?('.webhook_properties'))
   puts '[ERROR] You must have a java style properties file .webhook_properties with githubToken=xx defined.'
   exit(1)
