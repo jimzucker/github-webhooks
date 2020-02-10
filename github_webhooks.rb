@@ -125,6 +125,9 @@ def repository_default(webhook_action, webhook_object,webhook_payload)
     exit(1)
   end
 
+  #sleep to ensure readme creation is completed, we see instability in timing
+  sleep(30)
+
   #check if readme exists, if not create it
   response = exec_request('Get','200',"repos/#{repository_full_name}/contents/README.md", '', 'Checking existance of README.md', false)
   if !response.code.eql?('200')
