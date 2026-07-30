@@ -13,9 +13,14 @@ class SettingsSpec < SpecCase
     end
   end
 
-  def test_loads_the_github_token
-    with_properties("githubToken=abc123\n") do |path|
-      assert_equal 'abc123', GithubWebhooks::Settings.load(path).github_token
+  VALID = "githubToken=abc123\nwebhookSecret=s3cr3t\n"
+
+  def test_loads_the_github_token_and_webhook_secret
+    with_properties(VALID) do |path|
+      settings = GithubWebhooks::Settings.load(path)
+
+      assert_equal 'abc123', settings.github_token
+      assert_equal 's3cr3t', settings.webhook_secret
     end
   end
 
@@ -28,13 +33,30 @@ class SettingsSpec < SpecCase
   end
 
   def test_raises_when_the_token_is_absent
-    with_properties("somethingElse=x\n") do |path|
+    with_properties("webhookSecret=s3cr3t\n") do |path|
       assert_raises(GithubWebhooks::ConfigurationError) { GithubWebhooks::Settings.load(path) }
     end
   end
 
   def test_raises_when_the_token_is_blank
-    with_properties("githubToken=   \n") do |path|
+    with_properties("githubToken=   \nwebhookSecret=s3cr3t\n") do |path|
+      assert_raises(GithubWebhooks::ConfigurationError) { GithubWebhooks::Settings.load(path) }
+    end
+  end
+
+  # Fail closed: booting without a secret would leave the endpoint open.
+  def test_raises_when_the_webhook_secret_is_absent
+    with_properties("githubToken=abc123\n") do |path|
+      error = assert_raises(GithubWebhooks::ConfigurationError) do
+        GithubWebhooks::Settings.load(path)
+      end
+
+      assert_match(/webhookSecret is missing/, error.message)
+    end
+  end
+
+  def test_raises_when_the_webhook_secret_is_blank
+    with_properties("githubToken=abc123\nwebhookSecret=  \n") do |path|
       assert_raises(GithubWebhooks::ConfigurationError) { GithubWebhooks::Settings.load(path) }
     end
   end

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'openssl'
+require 'rack/utils'
 require 'sinatra/base'
 
 require_relative 'errors'
@@ -24,15 +26,27 @@ module GithubWebhooks
     # Synchronous alternative, used by the specs.
     INLINE_EXECUTOR = ->(job) { job.call }
 
+    WEBHOOK_PATH = '/github_webhook'
+
+    # GitHub signs the raw request body with the webhook's shared secret and
+    # sends the result here. See
+    # https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
+    #
+    # The legacy X-Hub-Signature (SHA-1) header is deliberately not accepted.
+    SIGNATURE_HEADER = 'HTTP_X_HUB_SIGNATURE_256'
+    SIGNATURE_PREFIX = 'sha256='
+    SIGNATURE_DIGEST = 'sha256'
+
     # Deliberately plain class accessors rather than Sinatra's `set`: `set` treats
     # a Proc value as a lazily-computed setting and invokes it on read, so an
     # executor lambda stored that way gets called with no arguments.
     class << self
-      attr_accessor :executor, :repository_handler
+      attr_accessor :executor, :repository_handler, :webhook_secret
     end
 
     self.executor = DEFAULT_EXECUTOR
     self.repository_handler = nil
+    self.webhook_secret = nil
 
     # Errors are logged and converted to a status code; never leak a stack trace
     # to a webhook sender, and never let one escape to Puma.
@@ -43,11 +57,20 @@ module GithubWebhooks
     def self.configure!(settings, executor: DEFAULT_EXECUTOR)
       client = GithubClient.new(token: settings.github_token)
       self.repository_handler = RepositoryDefaults.new(client: client)
+      self.webhook_secret = settings.webhook_secret
       self.executor = executor
       self
     end
 
-    post '/github_webhook' do
+    # Nothing reaches the handler until the signature checks out. The body is read
+    # here, once, because the signature covers the raw bytes -- re-serializing
+    # parsed JSON would not reproduce them.
+    before WEBHOOK_PATH do
+      @raw_body = request.body.read
+      verify_signature!(@raw_body)
+    end
+
+    post WEBHOOK_PATH do
       payload = parse_payload
       # The event name comes from the X-GitHub-Event header, which is what GitHub
       # actually documents. The old code read payload.keys[1], so it depended on
@@ -72,9 +95,37 @@ module GithubWebhooks
       event == 'repository' && action == 'created'
     end
 
+    # Rejects the request unless X-Hub-Signature-256 matches an HMAC of the raw
+    # body under the shared secret. Without this the endpoint accepted anything
+    # from anyone and acted on it using a privileged GitHub token.
+    def verify_signature!(body)
+      secret = self.class.webhook_secret
+
+      if secret.nil? || secret.empty?
+        # Settings enforces this at boot; this branch exists so the app can never
+        # fail open, whatever configures it.
+        Log.error('No webhook secret configured; refusing the request')
+        halt 500, 'server misconfigured'
+      end
+
+      provided = request.env[SIGNATURE_HEADER].to_s
+      if provided.empty?
+        Log.error('Rejecting webhook with no X-Hub-Signature-256 header')
+        halt 401, 'missing signature'
+      end
+
+      expected = SIGNATURE_PREFIX + OpenSSL::HMAC.hexdigest(SIGNATURE_DIGEST, secret, body.to_s)
+
+      # Constant-time; a plain == leaks how much of the signature was correct.
+      # Never log `expected` -- it is enough to forge the next request.
+      return if Rack::Utils.secure_compare(expected, provided)
+
+      Log.error('Rejecting webhook with an invalid X-Hub-Signature-256')
+      halt 401, 'invalid signature'
+    end
+
     def parse_payload
-      body = request.body.read
-      parsed = JSON.parse(body.to_s)
+      parsed = JSON.parse(@raw_body.to_s)
       halt 400, 'expected a JSON object' unless parsed.is_a?(Hash)
       parsed
     rescue JSON::ParserError => e

@@ -13,12 +13,13 @@ module GithubWebhooks
   class Settings
     DEFAULT_PATH = '.webhook_properties'
 
-    attr_reader :github_token
+    attr_reader :github_token, :webhook_secret
 
     def self.load(path = DEFAULT_PATH)
       unless File.exist?(path)
         raise ConfigurationError,
-              "You must have a java style properties file #{path} with githubToken=xx defined"
+              "You must have a java style properties file #{path} with " \
+              'githubToken=xx and webhookSecret=xx defined'
       end
 
       new(JavaProperties.load(path))
@@ -26,10 +27,17 @@ module GithubWebhooks
 
     def initialize(properties)
       @github_token = presence(properties[:githubToken])
+      @webhook_secret = presence(properties[:webhookSecret])
 
-      return unless @github_token.nil?
+      raise ConfigurationError, 'githubToken is missing or empty in the properties file' if @github_token.nil?
+      return unless @webhook_secret.nil?
 
-      raise ConfigurationError, 'githubToken is missing or empty in the properties file'
+      # Fail closed. Without a secret the endpoint would accept anything from
+      # anyone and act on it with a privileged token, which is the whole reason
+      # this check exists.
+      raise ConfigurationError,
+            'webhookSecret is missing or empty in the properties file. Set the same ' \
+            "value here and in the webhook's Secret field in GitHub."
     end
 
     private

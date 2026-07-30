@@ -37,8 +37,13 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Start container
+        env:
+          WEBHOOK_SECRET: smoke-test-secret
         run: |
-          printf 'githubToken=dummy-token-for-ci\n' > "$RUNNER_TEMP/webhook_properties"
+          {
+            printf 'githubToken=dummy-token-for-ci\n'
+            printf 'webhookSecret=%s\n' "$WEBHOOK_SECRET"
+          } > "$RUNNER_TEMP/webhook_properties"
           docker run -d --name gw-ci -p 4567:4567 \
             -v "$RUNNER_TEMP/webhook_properties:/usr/src/app/.webhook_properties" \
             github-webhooks:ci
@@ -46,7 +51,21 @@ jobs:
           docker logs gw-ci
 
       - name: Smoke test
+        env:
+          WEBHOOK_SECRET: smoke-test-secret
         run: ./script/smoke_test.sh http://127.0.0.1:4567 gw-ci
+
+      # Booting without a secret must fail closed rather than serve an open endpoint.
+      - name: Verify the server refuses to boot without a webhook secret
+        run: |
+          printf 'githubToken=dummy-token-for-ci\n' > "$RUNNER_TEMP/no_secret"
+          if docker run --rm \
+               -v "$RUNNER_TEMP/no_secret:/usr/src/app/.webhook_properties" \
+               github-webhooks:ci; then
+            echo "FAIL: server booted with no webhookSecret configured"
+            exit 1
+          fi
+          echo "ok: server refused to boot without a webhook secret"
 
       - name: Stop container
         if: always()

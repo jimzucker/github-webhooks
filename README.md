@@ -25,6 +25,7 @@ The branch is read from `repository.default_branch` in the webhook payload, so t
 | `202` | Accepted; repository setup is running in the background (watch the logs) |
 | `200` | Received, but this is not an event the service acts on |
 | `400` | Body was not a JSON object |
+| `401` | `X-Hub-Signature-256` was missing or did not verify |
 
 Because the work is in-flight rather than queued, a restart loses any setup that had not finished. Check the logs after creating a repository.
 
@@ -36,11 +37,26 @@ You can change the configuration for the settings used by the webhooks.  Each co
 
 # To run the webhooks with default settings
 
-## First create a file .webhook_properties with one property defined
+## First create a file .webhook_properties with two properties defined
 
 ```
 githubToken=<github api token>
+webhookSecret=<shared secret, also set in the webhook's Secret field in GitHub>
 ```
+
+> **Both are required.** The server refuses to start if either is missing.
+>
+> `webhookSecret` must match the **Secret** field of the webhook in GitHub
+> (repository or organization → Settings → Webhooks → your webhook → Secret).
+> Every request is checked against `X-Hub-Signature-256`, and anything that does
+> not verify is rejected with `401` before it is processed. Without this the
+> endpoint would act on a privileged GitHub token for anyone who found the URL.
+>
+> Generate one with:
+>
+> ```
+> openssl rand -hex 32
+> ```
 
 ## Start docker
 
@@ -131,10 +147,11 @@ Requires Ruby 3.4 or newer (see the `Dockerfile` for the version this is built a
    bundle install
    ```
 
-2. Create a file `.webhook_properties` with one entry:
+2. Create a file `.webhook_properties` with both entries (see above):
 
    ```
    githubToken=<github api token>
+   webhookSecret=<shared secret>
    ```
 
 3. Start the server; it listens on port 4567:

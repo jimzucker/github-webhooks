@@ -20,6 +20,8 @@ end
 class AppSpec < SpecCase
   include Rack::Test::Methods
 
+  SECRET = 'test-webhook-secret'
+
   def app
     GithubWebhooks::App
   end
@@ -28,6 +30,12 @@ class AppSpec < SpecCase
     super
     @handler = RecordingHandler.new
     install_handler(@handler)
+    GithubWebhooks::App.webhook_secret = SECRET
+  end
+
+  def teardown
+    GithubWebhooks::App.webhook_secret = nil
+    super
   end
 
   def install_handler(handler)
@@ -36,10 +44,19 @@ class AppSpec < SpecCase
     GithubWebhooks::App.executor = GithubWebhooks::App::INLINE_EXECUTOR
   end
 
-  def deliver(event, payload)
-    post '/github_webhook', JSON.generate(payload),
-         'CONTENT_TYPE' => 'application/json',
-         'HTTP_X_GITHUB_EVENT' => event
+  def signature_for(body, secret: SECRET)
+    "sha256=#{OpenSSL::HMAC.hexdigest('sha256', secret, body)}"
+  end
+
+  # Posts a correctly signed request, the way GitHub would.
+  def deliver(event, payload, headers = {})
+    body = JSON.generate(payload)
+    send_raw(body, { 'HTTP_X_GITHUB_EVENT' => event,
+                     'HTTP_X_HUB_SIGNATURE_256' => signature_for(body) }.merge(headers))
+  end
+
+  def send_raw(body, headers = {})
+    post '/github_webhook', body, { 'CONTENT_TYPE' => 'application/json' }.merge(headers)
   end
 
   def test_acknowledges_repository_created_with_202_and_runs_the_handler
@@ -80,16 +97,17 @@ class AppSpec < SpecCase
   end
 
   def test_missing_event_header_is_ignored_rather_than_crashing
-    post '/github_webhook', JSON.generate('action' => 'created'),
-         'CONTENT_TYPE' => 'application/json'
+    body = JSON.generate('action' => 'created')
+    send_raw(body, 'HTTP_X_HUB_SIGNATURE_256' => signature_for(body))
 
     assert_equal 200, last_response.status
     assert_logged(/Ignoring object = unknown/)
   end
 
   def test_rejects_unparseable_json
-    post '/github_webhook', 'not json at all', 'CONTENT_TYPE' => 'application/json',
-                                               'HTTP_X_GITHUB_EVENT' => 'repository'
+    send_raw('not json at all',
+             'HTTP_X_GITHUB_EVENT' => 'repository',
+             'HTTP_X_HUB_SIGNATURE_256' => signature_for('not json at all'))
 
     assert_equal 400, last_response.status
     assert_empty @handler.payloads
@@ -97,8 +115,9 @@ class AppSpec < SpecCase
   end
 
   def test_rejects_a_json_body_that_is_not_an_object
-    post '/github_webhook', '["a","b"]', 'CONTENT_TYPE' => 'application/json',
-                                         'HTTP_X_GITHUB_EVENT' => 'repository'
+    send_raw('["a","b"]',
+             'HTTP_X_GITHUB_EVENT' => 'repository',
+             'HTTP_X_HUB_SIGNATURE_256' => signature_for('["a","b"]'))
 
     assert_equal 400, last_response.status
   end
@@ -130,5 +149,110 @@ class AppSpec < SpecCase
     get '/nope'
 
     assert_equal 404, last_response.status
+  end
+end
+
+# Before this existed, anyone who learned the URL could drive privileged calls
+# against the stored GitHub token.
+class SignatureVerificationSpec < SpecCase
+  include Rack::Test::Methods
+
+  SECRET = 'test-webhook-secret'
+  PAYLOAD = '{"action":"created","repository":{"full_name":"acme/demo"}}'
+
+  def app
+    GithubWebhooks::App
+  end
+
+  def setup
+    super
+    @handler = RecordingHandler.new
+    GithubWebhooks::App.repository_handler = @handler
+    GithubWebhooks::App.executor = GithubWebhooks::App::INLINE_EXECUTOR
+    GithubWebhooks::App.webhook_secret = SECRET
+  end
+
+  def teardown
+    GithubWebhooks::App.webhook_secret = nil
+    super
+  end
+
+  def signature_for(body, secret: SECRET)
+    "sha256=#{OpenSSL::HMAC.hexdigest('sha256', secret, body)}"
+  end
+
+  def deliver(body, headers = {})
+    post '/github_webhook', body,
+         { 'CONTENT_TYPE' => 'application/json',
+           'HTTP_X_GITHUB_EVENT' => 'repository' }.merge(headers)
+  end
+
+  def test_accepts_a_correctly_signed_request
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE_256' => signature_for(PAYLOAD))
+
+    assert_equal 202, last_response.status
+    assert_equal 1, @handler.payloads.length
+  end
+
+  def test_rejects_a_request_with_no_signature
+    deliver(PAYLOAD)
+
+    assert_equal 401, last_response.status
+    assert_empty @handler.payloads
+    assert_logged(/no X-Hub-Signature-256 header/)
+  end
+
+  def test_rejects_a_garbage_signature
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE_256' => 'sha256=deadbeef')
+
+    assert_equal 401, last_response.status
+    assert_empty @handler.payloads
+    assert_logged(/invalid X-Hub-Signature-256/)
+  end
+
+  def test_rejects_a_signature_computed_with_the_wrong_secret
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE_256' => signature_for(PAYLOAD, secret: 'not-the-secret'))
+
+    assert_equal 401, last_response.status
+    assert_empty @handler.payloads
+  end
+
+  # The signature must cover the bytes actually delivered, not some other body.
+  def test_rejects_a_tampered_body
+    tampered = PAYLOAD.sub('acme/demo', 'attacker/evil')
+
+    deliver(tampered, 'HTTP_X_HUB_SIGNATURE_256' => signature_for(PAYLOAD))
+
+    assert_equal 401, last_response.status
+    assert_empty @handler.payloads
+  end
+
+  # GitHub still sends the legacy SHA-1 header; accepting it would undo the point.
+  def test_rejects_a_request_carrying_only_the_legacy_sha1_header
+    sha1 = "sha1=#{OpenSSL::HMAC.hexdigest('sha1', SECRET, PAYLOAD)}"
+
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE' => sha1)
+
+    assert_equal 401, last_response.status
+    assert_empty @handler.payloads
+  end
+
+  def test_never_logs_the_secret_or_the_expected_signature
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE_256' => 'sha256=deadbeef')
+
+    refute_logged(/#{SECRET}/)
+    refute_logged(/#{OpenSSL::HMAC.hexdigest('sha256', SECRET, PAYLOAD)}/)
+  end
+
+  # Belt and braces: Settings refuses to boot without a secret, but the request
+  # path must not fail open either.
+  def test_refuses_to_process_when_no_secret_is_configured
+    GithubWebhooks::App.webhook_secret = nil
+
+    deliver(PAYLOAD, 'HTTP_X_HUB_SIGNATURE_256' => signature_for(PAYLOAD))
+
+    assert_equal 500, last_response.status
+    assert_empty @handler.payloads
+    assert_logged(/No webhook secret configured/)
   end
 end
