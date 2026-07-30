@@ -40,7 +40,6 @@ docker run --rm -ti -p 4567:4567 -v $PWD/.webhook_properties:/usr/src/app/.webho
 You change the parameters for the webhooks by creating a local copy over overriting the config directory
 
 ```
-version: '3.4'
 services:
   github-webhooks:
     image: jimzucker/github-webhooks:latest
@@ -48,12 +47,14 @@ services:
     restart: unless-stopped
     ports:
       - 4567:4567
+    volumes:
+      - $PWD/.webhook_properties:/usr/src/app/.webhook_properties
 # you can copy configs locally and then override with:
 #  docker cp github-webhooks:/usr/src/app/config .
-    volumes:
-      - $PWD/webhook_properties:/usr/src/app/.webhook_properties
 #      - $PWD/config:/usr/src/app/config
 ```
+
+See `docker-compose.yml` in the repo for the maintained copy.
 ---
 
 ## Default webhook settings
@@ -61,7 +62,7 @@ services:
 ##### Repository Settings
 
 File: config/new_repo_config.json<br>
-Reference: https://developer.github.com/v3/repos/?#edit
+Reference: https://docs.github.com/en/rest/repos/repos#update-a-repository
 
 ```
 {
@@ -75,7 +76,7 @@ Reference: https://developer.github.com/v3/repos/?#edit
 ##### Branch Protection
 
 File: config/new_master_branch_config.json<br>
-Reference: https://developer.github.com/v3/repos/branches/#update-branch-protection
+Reference: https://docs.github.com/en/rest/branches/branch-protection#update-branch-protection
 
 ```
 { 
@@ -108,16 +109,48 @@ https://github.com/jimzucker/github-webhooks
 
 ##### Instructions to run Manually outside of Docker from github source
 
-> 1. To start the server and it will monitor on port 4567
-> 	ruby github-webhooks.rb
->   Note: you must create a file .webhook_properties with 1 entry
->   githubToken=<github api token>
-> 
-> 2. To expose your ports for development
-> ./ngrok http 4567
-> 
-> 3. To setup the webhook in GitHub
-> https://<URL to server that maps to 4567>/github_webhook
+Requires Ruby 3.4 or newer (see the `Dockerfile` for the version this is built and tested against).
+
+1. Install the dependencies:
+
+   ```
+   bundle install
+   ```
+
+2. Create a file `.webhook_properties` with one entry:
+
+   ```
+   githubToken=<github api token>
+   ```
+
+3. Start the server; it listens on port 4567:
+
+   ```
+   bundle exec ruby github_webhooks.rb
+   ```
+
+4. To expose your port for development:
+
+   ```
+   ./ngrok http 4567
+   ```
+
+5. Set the webhook payload URL in GitHub to:
+
+   ```
+   https://<URL to server that maps to 4567>/github_webhook
+   ```
+
+##### Building the image
+
+Every merge to `master` publishes a multi-architecture (`linux/amd64` + `linux/arm64`) image to Docker Hub via `.github/workflows/publish.yml`, so you normally do not need to build by hand. For local one-offs:
+
+```
+./build.sh --local   # build for this machine only
+./build.sh --push    # build both architectures and push to Docker Hub
+```
+
+`build.sh` deliberately refuses to do a plain single-arch `docker build` and push: on an Apple Silicon Mac that would replace the published `amd64` image with an `arm64`-only one.
 
 ##### Postman Reference
 
