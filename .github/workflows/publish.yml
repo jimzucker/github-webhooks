@@ -12,7 +12,7 @@ jobs:
     name: Push multi-arch image to Docker Hub
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Secrets are not available to job-level `if:`, so gate the push on a step
       # output instead. Without this the workflow would fail red on every merge
