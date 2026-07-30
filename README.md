@@ -139,7 +139,7 @@ https://github.com/jimzucker/github-webhooks
 
 ##### Instructions to run Manually outside of Docker from github source
 
-Requires Ruby 3.4 or newer (see the `Dockerfile` for the version this is built and tested against).
+Requires Ruby 3.4 or newer. The published image ships **Ruby 3.4** (see the `Dockerfile`); CI additionally runs the suite against **Ruby 4.0** as a forward-compatibility signal, so a break there is visible before the image moves.
 
 1. Install the dependencies:
 
@@ -178,6 +178,8 @@ Requires Ruby 3.4 or newer (see the `Dockerfile` for the version this is built a
 bundle install
 bundle exec rake
 ```
+
+CI runs this on Ruby 3.4 (required to pass) and Ruby 4.0 (advisory).
 
 ##### Layout
 
