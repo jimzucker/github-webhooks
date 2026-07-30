@@ -1,4 +1,4 @@
-FROM ruby:3.4-slim AS builder
+FROM ruby:4.0-slim AS builder
 
 # puma and nio4r ship native extensions, so the build stage needs a compiler.
 # It is thrown away -- only the resolved bundle is copied into the runtime stage.
@@ -17,7 +17,7 @@ COPY Gemfile Gemfile.lock ./
 RUN bundle install && rm -rf /usr/local/bundle/cache
 
 
-FROM ruby:3.4-slim AS runtime
+FROM ruby:4.0-slim AS runtime
 
 ENV BUNDLE_FROZEN=true
 ENV BUNDLE_WITHOUT=test
