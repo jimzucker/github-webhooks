@@ -8,6 +8,8 @@ RUN apt-get update -qq \
 
 # throw errors if Gemfile has been modified since Gemfile.lock
 ENV BUNDLE_FROZEN=true
+# Test-only gems have no business in the runtime image.
+ENV BUNDLE_WITHOUT=test
 
 WORKDIR /usr/src/app
 
@@ -18,11 +20,13 @@ RUN bundle install && rm -rf /usr/local/bundle/cache
 FROM ruby:3.4-slim AS runtime
 
 ENV BUNDLE_FROZEN=true
+ENV BUNDLE_WITHOUT=test
 
 WORKDIR /usr/src/app
 
 COPY --from=builder /usr/local/bundle /usr/local/bundle
-COPY Gemfile Gemfile.lock github_webhooks.rb ./
+COPY Gemfile Gemfile.lock config.ru github_webhooks.rb ./
+COPY lib ./lib
 COPY config ./config
 
 EXPOSE 4567

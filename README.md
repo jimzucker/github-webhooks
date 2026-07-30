@@ -1,5 +1,5 @@
 # github-webhooks
-Web service that listens for organization events to know when a repository has been created. When the repository is created please automate the protection of the master branch. Notify yourself with an @mention in an issue within the repository that outlines the protections that were added.
+Web service that listens for organization events to know when a repository has been created. When the repository is created it automates the protection of the repository's default branch, and notifies you with an @mention in an issue within the repository that outlines the protections that were added.
 
 You can run the webhooks in docker, see https://hub.docker.com/r/jimzucker/github-webhooks, or you can run the server directly from Github, instructions are at the end of the readme.
 
@@ -9,10 +9,24 @@ You can run the webhooks in docker, see https://hub.docker.com/r/jimzucker/githu
 * Allow merge commits
 * Squash commits are not allowed
 
-##### Master Branch
-* Pull requests are required to merge to master
-* Do not allow re-writting history
+##### Default branch
+* Pull requests are required to merge
+* Do not allow re-writing history
 * Restrictions are applied to administrators
+
+The branch is read from `repository.default_branch` in the webhook payload, so this works for repositories that default to `main` as well as older ones on `master`.
+
+##### Responses
+
+`POST /github_webhook` answers immediately and does the GitHub API work on a background thread, because GitHub only allows a webhook 10 seconds to respond:
+
+| Status | Meaning |
+| --- | --- |
+| `202` | Accepted; repository setup is running in the background (watch the logs) |
+| `200` | Received, but this is not an event the service acts on |
+| `400` | Body was not a JSON object |
+
+Because the work is in-flight rather than queued, a restart loses any setup that had not finished. Check the logs after creating a repository.
 
 
 ##### Configuration
@@ -140,6 +154,25 @@ Requires Ruby 3.4 or newer (see the `Dockerfile` for the version this is built a
    ```
    https://<URL to server that maps to 4567>/github_webhook
    ```
+
+##### Running the tests
+
+```
+bundle install
+bundle exec rake
+```
+
+##### Layout
+
+| Path | Purpose |
+| --- | --- |
+| `github_webhooks.rb` | entry point; parses `-o`/`-p` and starts the server |
+| `config.ru` | Rack entry point, for `bundle exec rackup` |
+| `lib/github_webhooks/app.rb` | routes and event dispatch |
+| `lib/github_webhooks/github_client.rb` | GitHub REST API calls |
+| `lib/github_webhooks/repository_defaults.rb` | the new-repository workflow |
+| `lib/github_webhooks/settings.rb` | reads `.webhook_properties` |
+| `spec/` | Minitest + rack-test suite |
 
 ##### Building the image
 

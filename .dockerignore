@@ -9,3 +9,6 @@ LICENSE
 build.sh
 docker-compose.yml
 *.postman_collection.json
+spec
+script
+Rakefile

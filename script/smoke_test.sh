@@ -55,6 +55,33 @@ check "POST /github_webhook (repository/deleted)" 200 \
 
 check "GET /nope (unknown route)" 404 "$(get /nope)"
 
+check "POST /github_webhook (malformed JSON)" 400 \
+  "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/github_webhook" \
+      -H 'Content-Type: application/json' -H 'X-GitHub-Event: repository' \
+      -d 'not json')"
+
+# An event we DO act on. The container runs with a dummy token, so the GitHub
+# call behind this fails -- which is the point. The work is acknowledged with 202
+# and runs off the request thread, and the failure must be logged and contained.
+# This is the regression test for exit(1) in the request path, which used to take
+# the whole server down mid-webhook.
+check "POST /github_webhook (repository/created)" 202 \
+  "$(post repository '{"action":"created","repository":{"full_name":"acme/demo","default_branch":"main"},"sender":{"login":"acme-bot"}}')"
+
+# Give the background thread a moment to fail and log.
+sleep 3
+
+check "server still serving after a failed background job" 404 "$(get /nope)"
+
+if [ -n "$CONTAINER" ]; then
+  if logs | grep -qE '\[ERROR\].*processing repository/created'; then
+    echo "ok    background failure was logged, not fatal"
+  else
+    echo "FAIL  expected a logged [ERROR] for the failed repository/created job"
+    failures=$((failures + 1))
+  fi
+fi
+
 # $stdout.sync must keep working or docker logs go silent -- see issue #6.
 if [ -n "$CONTAINER" ]; then
   if logs | grep -q '\[INFO\] Ignoring object'; then
