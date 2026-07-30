@@ -7,14 +7,22 @@ on:
 
 jobs:
   specs:
-    name: Specs
+    name: Specs (ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.4 is what the image ships (see Dockerfile). 4.0 is forward-compat
+        # signal only -- it is not what gets deployed, so it must not block a
+        # merge; it exists to catch a break before we choose to move.
+        ruby: ['3.4', '4.0']
+    continue-on-error: ${{ matrix.ruby == '4.0' }}
     steps:
       - uses: actions/checkout@v5
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
 
       - run: bundle exec rake
