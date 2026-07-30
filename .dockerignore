@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+.webhook_properties
+webhook_json.log
+.DS_Store
+README.md
+LICENSE
+build.sh
+docker-compose.yml
+*.postman_collection.json

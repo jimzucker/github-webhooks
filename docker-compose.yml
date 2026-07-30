@@ -1,4 +1,4 @@
-version: '3.4'
+# The top-level `version:` key is obsolete in Compose v2 and now warns; omitted.
 services:
   github-webhooks:
     image: jimzucker/github-webhooks:latest
@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - 4567:4567
+    volumes:
+      - $PWD/.webhook_properties:/usr/src/app/.webhook_properties
 # you can copy configs locally and then override with:
 #  docker cp github-webhooks:/usr/src/app/config .
-    volumes:
-      - $PWD/webhook_properties:/usr/src/app/.webhook_properties
 #      - $PWD/config:/usr/src/app/config
