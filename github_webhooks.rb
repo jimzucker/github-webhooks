@@ -37,6 +37,9 @@ require 'json'
 require 'java-properties'
 require 'uri'
 require 'net/http'
+# base64 is no longer a default gem as of Ruby 3.4, and repository_default's
+# Base64.strict_encode64 call would otherwise rely on a transitive require.
+require 'base64'
 
 ##################################################################################################
   #
