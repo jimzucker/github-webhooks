@@ -20,7 +20,7 @@ gem 'java-properties', '~> 0.3'
 # Excluded from the runtime image via BUNDLE_WITHOUT in the Dockerfile.
 group :test do
   gem 'minitest', '~> 6.0'
-  gem 'rack-test', '~> 2.2'
+  gem 'rack-test', '~> 2.3'
   gem 'rake', '~> 13.4'
-  gem 'webmock', '~> 3.26'
+  gem 'webmock', '~> 3.34'
 end
