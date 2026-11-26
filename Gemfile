@@ -12,15 +12,15 @@ gem 'sinatra', '~> 4.2'
 # Rack 3 moved Rack::Handler into the rackup gem and sinatra no longer bundles a
 # server, so classic mode (`ruby github_webhooks.rb`) needs both spelled out.
 gem 'rackup', '~> 2.3'
-gem 'puma', '~> 8.0'
+gem 'puma', '~> 8.1'
 
 gem 'json', '~> 2.21'
 gem 'java-properties', '~> 0.3'
 
 # Excluded from the runtime image via BUNDLE_WITHOUT in the Dockerfile.
 group :test do
-  gem 'minitest', '~> 6.0'
-  gem 'rack-test', '~> 2.2'
+  gem 'minitest', '~> 6.1'
+  gem 'rack-test', '~> 2.3'
   gem 'rake', '~> 13.4'
-  gem 'webmock', '~> 3.26'
+  gem 'webmock', '~> 3.38'
 end
